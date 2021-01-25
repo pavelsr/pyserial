@@ -299,13 +299,17 @@ def acquireLock(port, path, secondTry = False):
         try:
             fhLock = os.open(path, os.O_EXCL|os.O_CREAT|os.O_RDWR)
             pid = bytes(str(os.getpid()) + "\n", encoding='UTF-8')
+            try:
+                pid = bytes(str(os.getpid()) + "\n", encoding='UTF-8')
+            except TypeError:
+                pid = bytes(str(os.getpid()) + "\n")
             os.write(fhLock,pid)
             os.close(fhLock)
             return True
         except OSError as oserr:
             import errno
             if oserr.errno == errno.EEXIST and not secondTry:
-                # Check for stale lockfile.            
+                # Check for stale lockfile.
                 lf = os.open(path, os.O_RDONLY)
                 try:
                     lockedPid = int(os.read(lf,100))
@@ -324,7 +328,7 @@ def acquireLock(port, path, secondTry = False):
                     os.unlink(path)
                     return acquireLock(port, path, True)
                 raise SerialException( "pid %d could not open port %s: locked by PID %d" %( os.getpid(), path, lockedPid ) )
-            raise SerialException( "could not open port %s: errno %d (%s)" %( path, oserr.errno, os.strerror(oserr.errno) ) )         
+            raise SerialException( "could not open port %s: errno %d (%s)" %( path, oserr.errno, os.strerror(oserr.errno) ) )
         except Exception:
             raise
         raise SerialException("could not open lockfile %s" %( path ))
@@ -339,7 +343,7 @@ def releaseLock(port, path):
         os.remove(path)
 
 class PosixSerial(SerialBase):
-    """Serial port class POSIX implementation. Serial port configuration is 
+    """Serial port class POSIX implementation. Serial port configuration is
     done with termios and fcntl. Runs on Linux and many other Un*x like
     systems."""
 
@@ -358,7 +362,7 @@ class PosixSerial(SerialBase):
             self.fd = None
             raise SerialException("could not open port %s,%s: %s" % (self._port, self.portstr, msg))
         #~ fcntl.fcntl(self.fd, FCNTL.F_SETFL, 0)  # set blocking
-        
+
         #create lockfile for port
         base = self._port.split('/')[-1]
         self.lockfilename = getLockfilePath(base)
@@ -714,7 +718,7 @@ class PosixPollSerial(Serial):
                     #  handled below
                 buf = os.read(self.fd, size - len(read))
                 read.extend(buf)
-                if ((self._timeout is not None and self._timeout >= 0) or 
+                if ((self._timeout is not None and self._timeout >= 0) or
                     (self._interCharTimeout is not None and self._interCharTimeout > 0)) and not buf:
                     break   # early abort on timeout
         return bytes(read)
@@ -738,4 +742,3 @@ if __name__ == '__main__':
     sys.stdout.write('%r\n' % s.read(5))
     sys.stdout.write('%s\n' % s.inWaiting())
     del s
-
